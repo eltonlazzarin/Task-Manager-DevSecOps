@@ -12,4 +12,8 @@ EXPOSE 5000
 
 ENV FLASK_APP=run.py
 
+ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_DEBUG=False
+ENV SECRET_KEY=devsecops-secret-key
+
 CMD ["python", "run.py"]
