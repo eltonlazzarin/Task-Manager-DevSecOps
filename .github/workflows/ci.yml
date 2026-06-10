@@ -50,3 +50,24 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t task-manager-devsecops ./todo_project
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    needs: docker
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "TaskManager"
+          path: "./todo_project"
+          format: "HTML"
+          out: "dependency-check-report"
+
+      - name: Upload Dependency Check Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: dependency-check-report
