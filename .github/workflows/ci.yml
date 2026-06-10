@@ -7,6 +7,12 @@ on:
       - stage
       - production
 
+  pull_request:
+    branches:
+      - develop
+      - stage
+      - production
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -71,3 +77,66 @@ jobs:
         with:
           name: dependency-check-report
           path: dependency-check-report
+
+  review:
+    runs-on: ubuntu-latest
+    needs: dependency-check
+
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create temporary review environment
+        run: |
+          echo "Ambiente temporario de review criado para avaliacao manual"
+          echo "Branch: ${{ github.head_ref }}"
+          echo "Pull Request: ${{ github.event.pull_request.number }}"
+
+  deploy-stage:
+    runs-on: ubuntu-latest
+    needs: dependency-check
+
+    if: github.ref == 'refs/heads/stage'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Stage
+        run: |
+          echo "Deploy em ambiente de Stage iniciado"
+          docker build -t task-manager-stage ./todo_project
+          echo "Aplicacao implantada em Stage para simulacao de producao"
+
+  dast-stage:
+    runs-on: ubuntu-latest
+    needs: deploy-stage
+
+    if: github.ref == 'refs/heads/stage'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start application for DAST
+        run: |
+          docker build -t task-manager-stage ./todo_project
+          docker run -d -p 5000:5000 --name taskmanager-stage task-manager-stage
+          sleep 10
+          docker ps
+
+      - name: OWASP ZAP DAST
+        run: |
+          docker run --rm \
+            --network host \
+            -v ${{ github.workspace }}/zap-report:/zap/wrk \
+            -t ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://127.0.0.1:5000 \
+            -r zap-stage-report.html \
+            -I
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-stage-report
+          path: zap-report
