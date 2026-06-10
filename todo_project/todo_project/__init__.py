@@ -12,7 +12,10 @@ app = Flask(__name__)
 # Diretório onde está o __init__.py
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-app.config['SECRET_KEY'] = '45cf93c4d41348cd9980674ade9a7356'
+app.config['SECRET_KEY'] = os.getenv(
+    'SECRET_KEY',
+    'dev-secret-key-change-me'
+)
 
 # Caminho absoluto para o banco de dados
 app.config['SQLALCHEMY_DATABASE_URI'] = \
