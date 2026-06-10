@@ -124,16 +124,25 @@ jobs:
           sleep 10
           docker ps
 
+      - name: Prepare ZAP report directory
+        run: |
+          mkdir -p zap-report
+          chmod -R 777 zap-report
+
       - name: OWASP ZAP DAST
         run: |
           docker run --rm \
             --network host \
-            -v ${{ github.workspace }}/zap-report:/zap/wrk \
+            -v ${{ github.workspace }}/zap-report:/zap/wrk:rw \
             -t ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
             -t http://127.0.0.1:5000 \
             -r zap-stage-report.html \
             -I
+
+      - name: List ZAP report files
+        run: |
+          ls -la zap-report
 
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v4
