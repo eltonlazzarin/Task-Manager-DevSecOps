@@ -12,11 +12,19 @@ app = Flask(__name__)
 # Diretório onde está o __init__.py
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-app.config['SECRET_KEY'] = '45cf93c4d41348cd9980674ade9a7356'
+app.config['SECRET_KEY'] = os.getenv(
+    'SECRET_KEY',
+    'dev-secret-key-change-me'
+)
 
 # Caminho absoluto para o banco de dados
 app.config['SQLALCHEMY_DATABASE_URI'] = \
     'sqlite:///' + os.path.join(basedir, 'site.db')
+
+# Configurações de segurança dos cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = False
 
 db = SQLAlchemy(app)
 
@@ -37,18 +45,20 @@ formatter = logging.Formatter(
     '%(asctime)s %(name)s %(levelname)s: %(message)s'
 )
 
-# Log em arquivo (facilita testes e evidências)
 file_handler = logging.FileHandler('taskmanager.log')
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
-# Syslog Linux / WSL
+if not logger.handlers:
+    logger.addHandler(file_handler)
+
 try:
     syslog_handler = SysLogHandler(address='/dev/log')
     syslog_handler.setLevel(logging.INFO)
     syslog_handler.setFormatter(formatter)
-    logger.addHandler(syslog_handler)
+
+    if not any(isinstance(h, SysLogHandler) for h in logger.handlers):
+        logger.addHandler(syslog_handler)
 
     logger.info("Syslog inicializado com sucesso")
 
@@ -56,6 +66,37 @@ except Exception as e:
     logger.warning(f"Nao foi possivel conectar ao Syslog: {e}")
 
 logger.info("Aplicacao iniciada")
+
+
+# =====================================================
+# CABEÇALHOS DE SEGURANÇA HTTP
+# =====================================================
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = (
+        'geolocation=(), microphone=(), camera=()'
+    )
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self'; "
+        "img-src 'self' data:; "
+        "font-src 'self'; "
+        "frame-ancestors 'self'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+
+    return response
+
 
 # Always put Routes at end
 from todo_project import routes
