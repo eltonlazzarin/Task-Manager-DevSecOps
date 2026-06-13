@@ -32,7 +32,7 @@ jobs:
       - name: Validate Python syntax
         run: |
           mkdir -p build-report
-          python -m py_compile todo_project/run.py
+          python -m py_compile run.py
           echo "Build executado com sucesso" > build-report/build.txt
 
       - name: Upload Build Report
@@ -73,7 +73,7 @@ jobs:
       - name: Build Docker image
         run: |
           mkdir -p docker-report
-          docker build -t task-manager-devsecops ./todo_project | tee docker-report/docker-build.log
+          docker build -t task-manager-devsecops . | tee docker-report/docker-build.log
           docker images task-manager-devsecops > docker-report/docker-image.txt
 
       - name: Upload Docker Report
@@ -93,7 +93,7 @@ jobs:
         uses: dependency-check/Dependency-Check_Action@main
         with:
           project: "TaskManager"
-          path: "./todo_project"
+          path: "."
           format: "HTML"
           out: "dependency-check-report"
 
@@ -138,7 +138,7 @@ jobs:
         run: |
           mkdir -p stage-report
           echo "Deploy Stage iniciado" > stage-report/stage.txt
-          docker build -t task-manager-stage ./todo_project | tee stage-report/docker-build.log
+          docker build -t task-manager-stage . | tee stage-report/docker-build.log
           echo "Deploy concluido" >> stage-report/stage.txt
 
       - name: Upload Stage Report
@@ -158,7 +158,7 @@ jobs:
 
       - name: Start application for DAST
         run: |
-          docker build -t task-manager-stage ./todo_project
+          docker build -t task-manager-stage .
           docker run -d -p 5000:5000 --name taskmanager-stage task-manager-stage
           sleep 10
           docker ps
