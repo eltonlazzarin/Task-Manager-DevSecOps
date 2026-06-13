@@ -1,0 +1,15 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taskmanager
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=production
+    volumes:
+      - ./todo_project/site.db:/app/todo_project/site.db
+      - ./taskmanager.log:/app/taskmanager.log

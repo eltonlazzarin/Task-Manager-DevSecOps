@@ -31,7 +31,15 @@ jobs:
 
       - name: Validate Python syntax
         run: |
+          mkdir -p build-report
           python -m py_compile todo_project/run.py
+          echo "Build executado com sucesso" > build-report/build.txt
+
+      - name: Upload Build Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report
+          path: build-report
 
   bandit:
     runs-on: ubuntu-latest
@@ -44,7 +52,16 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit
-        run: bandit -r todo_project
+        run: |
+          mkdir -p bandit-report
+          bandit -r todo_project -f html -o bandit-report/bandit.html || true
+          bandit -r todo_project -f txt -o bandit-report/bandit.txt || true
+
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report
 
   docker:
     runs-on: ubuntu-latest
@@ -55,7 +72,15 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t task-manager-devsecops ./todo_project
+          mkdir -p docker-report
+          docker build -t task-manager-devsecops ./todo_project | tee docker-report/docker-build.log
+          docker images task-manager-devsecops > docker-report/docker-image.txt
+
+      - name: Upload Docker Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-report
+          path: docker-report
 
   dependency-check:
     runs-on: ubuntu-latest
@@ -89,9 +114,16 @@ jobs:
 
       - name: Create temporary review environment
         run: |
-          echo "Ambiente temporario de review criado para avaliacao manual"
-          echo "Branch: ${{ github.head_ref }}"
-          echo "Pull Request: ${{ github.event.pull_request.number }}"
+          mkdir -p review-report
+          echo "Ambiente temporario criado" > review-report/review.txt
+          echo "Branch: ${{ github.head_ref }}" >> review-report/review.txt
+          echo "Pull Request: ${{ github.event.pull_request.number }}" >> review-report/review.txt
+
+      - name: Upload Review Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-report
+          path: review-report
 
   deploy-stage:
     runs-on: ubuntu-latest
@@ -104,9 +136,16 @@ jobs:
 
       - name: Deploy to Stage
         run: |
-          echo "Deploy em ambiente de Stage iniciado"
-          docker build -t task-manager-stage ./todo_project
-          echo "Aplicacao implantada em Stage para simulacao de producao"
+          mkdir -p stage-report
+          echo "Deploy Stage iniciado" > stage-report/stage.txt
+          docker build -t task-manager-stage ./todo_project | tee stage-report/docker-build.log
+          echo "Deploy concluido" >> stage-report/stage.txt
+
+      - name: Upload Stage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage-report
+          path: stage-report
 
   dast-stage:
     runs-on: ubuntu-latest
