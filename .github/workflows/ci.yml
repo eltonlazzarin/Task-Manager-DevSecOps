@@ -26,14 +26,32 @@ jobs:
 
       - name: Install dependencies
         run: |
+          mkdir -p build-report
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip freeze > build-report/requirements-installed.txt
 
       - name: Validate Python syntax
         run: |
-          mkdir -p build-report
+          echo "=== Build Report ===" > build-report/build-report.txt
+          echo "Data: $(date)" >> build-report/build-report.txt
+          echo "" >> build-report/build-report.txt
+
+          echo "Versao do Python:" >> build-report/build-report.txt
+          python --version >> build-report/build-report.txt 2>&1
+          echo "" >> build-report/build-report.txt
+
+          echo "Validacao de sintaxe:" >> build-report/build-report.txt
           python -m py_compile run.py
-          echo "Build executado com sucesso" > build-report/build.txt
+          echo "run.py validado com sucesso" >> build-report/build-report.txt
+          echo "" >> build-report/build-report.txt
+
+          echo "Arquivos principais encontrados:" >> build-report/build-report.txt
+          ls -la >> build-report/build-report.txt
+          echo "" >> build-report/build-report.txt
+
+          echo "Arquivos da aplicacao:" >> build-report/build-report.txt
+          find todo_project -type f | sort >> build-report/build-report.txt
 
       - name: Upload Build Report
         uses: actions/upload-artifact@v4
@@ -54,8 +72,16 @@ jobs:
       - name: Run Bandit
         run: |
           mkdir -p bandit-report
-          bandit -r todo_project -f html -o bandit-report/bandit.html || true
-          bandit -r todo_project -f txt -o bandit-report/bandit.txt || true
+
+          bandit -r todo_project || true
+
+          bandit -r todo_project \
+            -f html \
+            -o bandit-report/bandit-report.html || true
+
+          bandit -r todo_project \
+            -f txt \
+            -o bandit-report/bandit-report.txt || true
 
       - name: Upload Bandit Report
         uses: actions/upload-artifact@v4
@@ -73,8 +99,26 @@ jobs:
       - name: Build Docker image
         run: |
           mkdir -p docker-report
-          docker build -t task-manager-devsecops . | tee docker-report/docker-build.log
-          docker images task-manager-devsecops > docker-report/docker-image.txt
+
+          echo "=== Docker Build Report ===" > docker-report/docker-report.txt
+          echo "Data: $(date)" >> docker-report/docker-report.txt
+          echo "" >> docker-report/docker-report.txt
+
+          docker build -t task-manager-devsecops . \
+            | tee docker-report/docker-build.log
+
+          echo "" >> docker-report/docker-report.txt
+          echo "Imagem Docker criada:" >> docker-report/docker-report.txt
+          docker images task-manager-devsecops \
+            | tee docker-report/docker-image.txt >> docker-report/docker-report.txt
+
+          echo "" >> docker-report/docker-report.txt
+          echo "Historico de camadas da imagem:" >> docker-report/docker-report.txt
+          docker history task-manager-devsecops \
+            | tee docker-report/docker-history.txt >> docker-report/docker-report.txt
+
+          docker inspect task-manager-devsecops \
+            > docker-report/docker-inspect.json
 
       - name: Upload Docker Report
         uses: actions/upload-artifact@v4
@@ -115,7 +159,9 @@ jobs:
       - name: Create temporary review environment
         run: |
           mkdir -p review-report
-          echo "Ambiente temporario criado" > review-report/review.txt
+          echo "=== Review Environment Report ===" > review-report/review.txt
+          echo "Data: $(date)" >> review-report/review.txt
+          echo "Ambiente temporario criado para avaliacao manual" >> review-report/review.txt
           echo "Branch: ${{ github.head_ref }}" >> review-report/review.txt
           echo "Pull Request: ${{ github.event.pull_request.number }}" >> review-report/review.txt
 
@@ -137,9 +183,24 @@ jobs:
       - name: Deploy to Stage
         run: |
           mkdir -p stage-report
-          echo "Deploy Stage iniciado" > stage-report/stage.txt
-          docker build -t task-manager-stage . | tee stage-report/docker-build.log
-          echo "Deploy concluido" >> stage-report/stage.txt
+
+          echo "=== Stage Deploy Report ===" > stage-report/stage-report.txt
+          echo "Data: $(date)" >> stage-report/stage-report.txt
+          echo "Branch: ${{ github.ref }}" >> stage-report/stage-report.txt
+          echo "" >> stage-report/stage-report.txt
+
+          echo "Deploy Stage iniciado" >> stage-report/stage-report.txt
+
+          docker build -t task-manager-stage . \
+            | tee stage-report/stage-docker-build.log
+
+          echo "" >> stage-report/stage-report.txt
+          echo "Imagem Stage criada:" >> stage-report/stage-report.txt
+          docker images task-manager-stage \
+            | tee stage-report/stage-docker-image.txt >> stage-report/stage-report.txt
+
+          echo "" >> stage-report/stage-report.txt
+          echo "Deploy concluido com sucesso" >> stage-report/stage-report.txt
 
       - name: Upload Stage Report
         uses: actions/upload-artifact@v4
@@ -176,11 +237,13 @@ jobs:
             -t ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
             -t http://127.0.0.1:5000 \
-            -r zap-stage-report.html \
+            -r /zap/wrk/zap-stage-report.html \
             -I
 
       - name: List ZAP report files
         run: |
+          echo "Arquivos gerados pelo ZAP:"
+          find zap-report -type f
           ls -la zap-report
 
       - name: Upload ZAP Report
