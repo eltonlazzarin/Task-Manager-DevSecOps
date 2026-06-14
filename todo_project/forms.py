@@ -9,6 +9,7 @@ from wtforms.validators import DataRequired, EqualTo, Length, ValidationError
 # Import the User Database Model
 from todo_project.models import User
 
+# Imports the current_user object from the Flask-Login
 from flask_login import current_user
 
 
